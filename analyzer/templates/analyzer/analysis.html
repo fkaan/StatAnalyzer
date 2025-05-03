@@ -1,0 +1,838 @@
+{% extends "analyzer/base.html" %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="container-fluid mt-3">
+    <div class="row">
+        <!-- Main Content Area -->
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-chart-bar"></i> Statistical Analyzer</h2>
+                <div class="alert alert-info mb-0 py-2">
+                    <i class="fas fa-info-circle"></i> Data in memory only - refresh clears analysis
+                </div>
+            </div>
+
+            <!-- Data Summary Section -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="fas fa-database"></i> Data Summary</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5><i class="fas fa-tags"></i> Variable Types</h5>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th>Variable</th>
+                                            <th>Type</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for var, type in var_types.items %}
+                                        <tr>
+                                            <td><code>{{ var }}</code></td>
+                                            <td>
+                                                <span class="badge 
+                                                    {% if type == 'Metric' %}badge-primary
+                                                    {% elif type == 'Ordinal' %}badge-warning
+                                                    {% else %}badge-secondary{% endif %}">
+                                                    {{ type }}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h5><i class="fas fa-table"></i> Data Preview</h5>
+                            <div class="table-responsive" style="max-height: 300px;">
+                                {{ data_preview|safe }}
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if descriptive_stats %}
+                    <div class="mt-4">
+                        <h5><i class="fas fa-calculator"></i> Descriptive Statistics</h5>
+                        <div class="table-responsive">
+                            {{ descriptive_stats|safe }}
+                        </div>
+                        <form method="post" class="mt-3">
+                            {% csrf_token %}
+                            <button type="submit" name="ai_summary" class="btn btn-sm btn-info">
+                                <i class="fas fa-robot"></i> Generate AI Insights
+                            </button>
+                        </form>
+                        {% if ai_summary %}
+                        <div class="alert alert-light mt-3">
+                            <h6><i class="fas fa-lightbulb"></i> AI Analysis</h6>
+                            <div class="mt-2">{{ ai_summary|linebreaks }}</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Analysis Tabs -->
+            <ul class="nav nav-tabs mb-4" id="analysisTabs" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link active" id="hypothesis-tab" data-toggle="tab" href="#hypothesis" role="tab">
+                        <i class="fas fa-flask"></i> Hypothesis Tests
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="visualization-tab" data-toggle="tab" href="#visualization" role="tab">
+                        <i class="fas fa-chart-line"></i> Visualizations
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="regression-tab" data-toggle="tab" href="#regression" role="tab">
+                        <i class="fas fa-project-diagram"></i> Regression
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="ancova-tab" data-toggle="tab" href="#ancova" role="tab">
+                        <i class="fas fa-balance-scale"></i> ANCOVA
+                    </a>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="analysisTabsContent">
+                <!-- Hypothesis Testing Tab -->
+                <div class="tab-pane fade show active" id="hypothesis" role="tabpanel">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <form method="post" id="hypothesis-form">
+                                {% csrf_token %}
+                                <div class="form-row">
+                                    <div class="form-group col-md-3">
+                                        <label for="test_type">Test Type</label>
+                                        <select name="test_type" id="test_type" class="form-control form-control-sm" required>
+                                            <option value="">Select test type...</option>
+                                            <option value="t_test">Independent T-Test</option>
+                                            <option value="anova">One-Way ANOVA</option>
+                                            <option value="chi_square">Chi-Square Test</option>
+                                            <option value="mann_whitney">Mann-Whitney U</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group col-md-3">
+                                        <label for="column1">Primary Variable</label>
+                                        <select name="column1" id="column1" class="form-control form-control-sm" required>
+                                            <option value="">Select variable...</option>
+                                            {% for col in numeric_cols %}
+                                            <option value="{{ col }}">{{ col }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="form-group col-md-3">
+                                        <label for="column2">Secondary Variable</label>
+                                        <select name="column2" id="column2" class="form-control form-control-sm">
+                                            <option value="">Select variable...</option>
+                                            {% for col in numeric_cols %}
+                                            <option value="{{ col }}">{{ col }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="form-group col-md-3">
+                                        <label for="group_column">Group Variable</label>
+                                        <select name="group_column" id="group_column" class="form-control form-control-sm">
+                                            <option value="">Select group...</option>
+                                            {% for col in categorical_cols %}
+                                            <option value="{{ col }}">{{ col }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <button type="submit" name="run_test" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-play"></i> Run Analysis
+                                </button>
+                            </form>
+
+                            {% if test_results %}
+                            <div class="alert alert-success mt-3">
+                                <h5><i class="fas fa-chart-bar"></i> {{ test_results.type }} Results</h5>
+                                <p><strong>Variables:</strong> {{ test_results.variables }}</p>
+                                <p><strong>Statistic:</strong> {{ test_results.statistic }}</p>
+                                <p><strong>p-value:</strong> 
+                                    <span class="badge {% if test_results.p_value|floatformat:4 < 0.05 %}badge-danger{% else %}badge-success{% endif %}">
+                                        {{ test_results.p_value }}
+                                    </span>
+                                </p>
+                                <p><strong>Interpretation:</strong> {{ test_results.interpretation }}</p>
+                            </div>
+                            <div class="mt-3">
+                                <form method="post" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" name="ai_summary" class="btn btn-info btn-sm">
+                                        <i class="fas fa-robot"></i> Generate AI Insights
+                                    </button>
+                                </form>
+                                <a href="{% url 'analyzer:download_report' %}" class="btn btn-success btn-sm download-report">
+                                    <i class="fas fa-file-pdf"></i> Download Report
+                                </a>
+                            </div>
+                            {% if ai_summary %}
+                            <div class="alert alert-light mt-3">
+                                <h6><i class="fas fa-lightbulb"></i> AI Analysis</h6>
+                                <div class="mt-2">{{ ai_summary|linebreaks }}</div>
+                            </div>
+                            {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Visualization Tab -->
+                <div class="tab-pane fade" id="visualization" role="tabpanel">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <form method="post" id="visualization-form">
+                                {% csrf_token %}
+                                <div class="form-row">
+                                    <div class="form-group col-md-3">
+                                        <label for="plot_type">Visualization Type</label>
+                                        <select name="plot_type" id="plot_type" class="form-control form-control-sm" required>
+                                            <option value="">Select type...</option>
+                                            <option value="histogram">Histogram</option>
+                                            <option value="boxplot">Box Plot</option>
+                                            <option value="scatterplot">Scatter Plot</option>
+                                            <option value="correlation">Correlation Matrix</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group col-md-3">
+                                        <label for="column1">Primary Variable</label>
+                                        <select name="column1" id="column1" class="form-control form-control-sm" required>
+                                            <option value="">Select variable...</option>
+                                            {% for col in numeric_cols %}
+                                            <option value="{{ col }}">{{ col }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="form-group col-md-3">
+                                        <label for="column2">Secondary Variable</label>
+                                        <select name="column2" id="column2" class="form-control form-control-sm">
+                                            <option value="">Select variable...</option>
+                                            {% for col in numeric_cols %}
+                                            <option value="{{ col }}">{{ col }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="form-group col-md-3">
+                                        <label for="group_column">Group By</label>
+                                        <select name="group_column" id="group_column" class="form-control form-control-sm">
+                                            <option value="">None</option>
+                                            {% for col in categorical_cols %}
+                                            <option value="{{ col }}">{{ col }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <button type="submit" name="generate_plot" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-chart-line"></i> Generate Visualization
+                                </button>
+                            </form>
+
+                            {% if plot_html %}
+                            <div class="mt-4 border rounded p-2">
+                                {{ plot_html|safe }}
+                            </div>
+                            <div class="mt-3">
+                                <form method="post" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" name="ai_summary" class="btn btn-info btn-sm">
+                                        <i class="fas fa-robot"></i> Generate AI Insights
+                                    </button>
+                                </form>
+                                <a href="{% url 'analyzer:download_report' %}" class="btn btn-success btn-sm download-report">
+                                    <i class="fas fa-file-pdf"></i> Download Report
+                                </a>
+                            </div>
+                            {% if ai_summary %}
+                            <div class="alert alert-light mt-3">
+                                <h6><i class="fas fa-lightbulb"></i> AI Analysis</h6>
+                                <div class="mt-2">{{ ai_summary|linebreaks }}</div>
+                            </div>
+                            {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Regression Tab -->
+                <div class="tab-pane fade" id="regression" role="tabpanel">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <ul class="nav nav-pills mb-3" id="regressionTabs" role="tablist">
+                                <li class="nav-item">
+                                    <a class="nav-link active" id="linear-tab" data-toggle="pill" href="#linear" role="tab">
+                                        Linear Regression
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" id="logistic-tab" data-toggle="pill" href="#logistic" role="tab">
+                                        Logistic Regression
+                                    </a>
+                                </li>
+                            </ul>
+
+                            <div class="tab-content" id="regressionTabsContent">
+                                <!-- Linear Regression -->
+                                <div class="tab-pane fade show active" id="linear" role="tabpanel">
+                                    <form method="post" id="linear-regression-form">
+                                        {% csrf_token %}
+                                        <div class="form-row">
+                                            <div class="form-group col-md-6">
+                                                <label for="target_column">Dependent Variable (Y)</label>
+                                                <select name="target_column" class="form-control form-control-sm" required>
+                                                    <option value="">Select target...</option>
+                                                    {% for col in numeric_cols %}
+                                                    <option value="{{ col }}">{{ col }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="form-group col-md-6">
+                                                <label for="predictor_columns">Independent Variables (X)</label>
+                                                <select name="predictor_columns" class="form-control form-control-sm" multiple required>
+                                                    {% for col in numeric_cols %}
+                                                    <option value="{{ col }}">{{ col }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <button type="submit" name="run_regression" class="btn btn-primary btn-sm">
+                                            <i class="fas fa-play"></i> Run Linear Regression
+                                        </button>
+                                    </form>
+
+                                    {% if regression_results %}
+                                    <div class="mt-4">
+                                        <div class="alert alert-secondary">
+                                            <div class="d-flex justify-content-between">
+                                                <div>
+                                                    <strong>Model:</strong> {{ regression_results.target }} ~ {{ regression_results.predictors }}
+                                                </div>
+                                                <div>
+                                                    <strong>R²:</strong> <span class="badge badge-info">{{ regression_results.r2 }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <h6><i class="fas fa-coins"></i> Coefficients</h6>
+                                                <div class="table-responsive">
+                                                    <table class="table table-sm table-hover">
+                                                        <thead class="thead-light">
+                                                            <tr>
+                                                                <th>Variable</th>
+                                                                <th>Coefficient</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {% for coeff in regression_results.coefficients %}
+                                                            <tr>
+                                                                <td>{{ coeff.Variable }}</td>
+                                                                <td>{{ coeff.Coefficient }}</td>
+                                                            </tr>
+                                                            {% endfor %}
+                                                            <tr class="table-primary">
+                                                                <td><strong>Intercept</strong></td>
+                                                                <td><strong>{{ regression_results.intercept }}</strong></td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <h6><i class="fas fa-search"></i> Multicollinearity (VIF)</h6>
+                                                <div class="table-responsive">
+                                                    <table class="table table-sm table-hover">
+                                                        <thead class="thead-light">
+                                                            <tr>
+                                                                <th>Variable</th>
+                                                                <th>VIF Score</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {% for vif in regression_results.vif %}
+                                                            <tr>
+                                                                <td>{{ vif.Variable }}</td>
+                                                                <td>
+                                                                    <span class="badge 
+                                                                        {% if vif.VIF|floatformat:2|add:'0' > 5 %}badge-warning
+                                                                        {% elif vif.VIF|floatformat:2|add:'0' > 10 %}badge-danger
+                                                                        {% else %}badge-success{% endif %}">
+                                                                        {{ vif.VIF }}
+                                                                    </span>
+                                                                </td>
+                                                            </tr>
+                                                            {% endfor %}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="mt-3">
+                                            <a href="{% url 'analyzer:download_report' %}" class="btn btn-success btn-sm download-report">
+                                                <i class="fas fa-file-pdf"></i> Download Full Report
+                                            </a>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Logistic Regression -->
+                                <div class="tab-pane fade" id="logistic" role="tabpanel">
+                                    <form method="post" id="logistic-regression-form">
+                                        {% csrf_token %}
+                                        <div class="form-row">
+                                            <div class="form-group col-md-6">
+                                                <label for="target_logistic">Binary Target (Y)</label>
+                                                <select name="target_logistic" class="form-control form-control-sm" required>
+                                                    <option value="">Select target...</option>
+                                                    {% for col in binary_cols %}
+                                                    <option value="{{ col }}">{{ col }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="form-group col-md-6">
+                                                <label for="predictors_logistic">Predictors (X)</label>
+                                                <select name="predictors_logistic" class="form-control form-control-sm" multiple required>
+                                                    {% for col in numeric_cols %}
+                                                    {% if col not in binary_cols %}
+                                                    <option value="{{ col }}">{{ col }}</option>
+                                                    {% endif %}
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <button type="submit" name="run_logistic" class="btn btn-primary btn-sm">
+                                            <i class="fas fa-play"></i> Run Logistic Regression
+                                        </button>
+                                    </form>
+
+                                    {% if logistic_results %}
+                                    <div class="alert alert-info mt-3">
+                                        <h5><i class="fas fa-chart-line"></i> Logistic Regression Results</h5>
+                                        <p><strong>Target Variable:</strong> {{ logistic_results.target }}</p>
+                                        <p><strong>Predictors:</strong> {{ logistic_results.predictors }}</p>
+                                        <p><strong>Accuracy:</strong> {{ logistic_results.accuracy }}</p>
+                                        
+                                        <div class="row mt-3">
+                                            <div class="col-md-12">
+                                                <h6>Coefficients</h6>
+                                                <div class="table-responsive">
+                                                    <table class="table table-bordered">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Variable</th>
+                                                                <th>Coefficient</th>
+                                                                <th>Odds Ratio</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {% for coeff in logistic_results.coefficients %}
+                                                            <tr>
+                                                                <td>{{ coeff.Variable }}</td>
+                                                                <td>{{ coeff.Coefficient }}</td>
+                                                                <td>{{ coeff.Odds_Ratio }}</td>
+                                                            </tr>
+                                                            {% endfor %}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ANCOVA Tab -->
+                <div class="tab-pane fade" id="ancova" role="tabpanel">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <form method="post" id="ancova-form">
+                                {% csrf_token %}
+                                <div class="form-row">
+                                    <div class="form-group col-md-4">
+                                        <label for="ancova_outcome">Outcome Variable</label>
+                                        <select name="ancova_outcome" class="form-control form-control-sm" required>
+                                            <option value="">Select outcome...</option>
+                                            {% for col in numeric_cols %}
+                                            <option value="{{ col }}">{{ col }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="form-group col-md-4">
+                                        <label for="ancova_group">Group Variable</label>
+                                        <select name="ancova_group" class="form-control form-control-sm" required>
+                                            <option value="">Select group...</option>
+                                            {% for col in categorical_cols %}
+                                            <option value="{{ col }}">{{ col }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="form-group col-md-4">
+                                        <label for="ancova_covariate">Covariate</label>
+                                        <select name="ancova_covariate" class="form-control form-control-sm" required>
+                                            <option value="">Select covariate...</option>
+                                            {% for col in numeric_cols %}
+                                            <option value="{{ col }}">{{ col }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <button type="submit" name="run_ancova" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-play"></i> Run ANCOVA
+                                </button>
+                            </form>
+
+                            {% if ancova_results %}
+                            <div class="mt-4">
+                                <div class="alert alert-secondary">
+                                    <strong>Model Formula:</strong> {{ ancova_results.outcome }} ~ C({{ ancova_results.group }}) + {{ ancova_results.covariate }}
+                                </div>
+
+                                <h6><i class="fas fa-table"></i> ANCOVA Results</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-hover">
+                                        <thead class="thead-light">
+                                            <tr>
+                                                <th>Source</th>
+                                                <th>Sum Sq</th>
+                                                <th>df</th>
+                                                <th>F</th>
+                                                <th>p-value</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for row in ancova_results.results %}
+                                            <tr>
+                                                <td>{{ row.Source }}</td>
+                                                <td>{{ row.Sum_of_Squares }}</td>
+                                                <td>{{ row.df }}</td>
+                                                <td>{{ row.F }}</td>
+                                                <td>
+                                                    <span class="badge 
+                                                        {% if row.p_value|floatformat:4|add:'0' < 0.05 %}badge-danger
+                                                        {% else %}badge-success{% endif %}">
+                                                        {{ row.p_value }}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Initialize tooltips
+    $('[data-toggle="tooltip"]').tooltip();
+    
+    // Initialize tabs
+    $('#analysisTabs a').on('click', function (e) {
+        e.preventDefault();
+        $(this).tab('show');
+        localStorage.setItem('lastTab', $(this).attr('href'));
+    });
+    
+    // Load last active tab
+    var lastTab = localStorage.getItem('lastTab');
+    if (lastTab) {
+        $('#analysisTabs a[href="' + lastTab + '"]').tab('show');
+    }
+    
+    // Initialize select2 for all select inputs
+    $('select').select2({
+        theme: 'bootstrap4',
+        width: '100%'
+    });
+
+    // Initialize regression tabs
+    $('#regressionTabs a').on('click', function (e) {
+        e.preventDefault();
+        $(this).tab('show');
+        localStorage.setItem('lastRegressionTab', $(this).attr('href'));
+    });
+
+    // Load last active regression tab
+    var lastRegressionTab = localStorage.getItem('lastRegressionTab');
+    if (lastRegressionTab) {
+        $('#regressionTabs a[href="' + lastRegressionTab + '"]').tab('show');
+    }
+
+    // Function to validate dataset compatibility
+    function validateDatasetCompatibility(formType) {
+        var binaryCols = JSON.parse('{{ binary_cols|safe }}');
+        var numericCols = JSON.parse('{{ numeric_cols|safe }}');
+        var categoricalCols = JSON.parse('{{ categorical_cols|safe }}');
+        
+        if (formType === 'logistic' && binaryCols.length === 0) {
+            return {
+                valid: false,
+                message: "This dataset doesn't contain any binary variables. Logistic regression requires a binary target variable."
+            };
+        }
+        
+        if (formType === 'regression' && numericCols.length < 2) {
+            return {
+                valid: false,
+                message: "This dataset doesn't have enough numeric variables for regression analysis."
+            };
+        }
+        
+        if (formType === 'ancova' && (numericCols.length < 2 || categoricalCols.length === 0)) {
+            return {
+                valid: false,
+                message: "ANCOVA requires at least one numeric variable and one categorical variable."
+            };
+        }
+        
+        if (formType === 'hypothesis') {
+            var testType = $('#test_type').val();
+            if (testType === 't_test' && numericCols.length < 2) {
+                return {
+                    valid: false,
+                    message: "T-Test requires at least two numeric variables."
+                };
+            }
+            if (testType === 'anova' && (numericCols.length === 0 || categoricalCols.length === 0)) {
+                return {
+                    valid: false,
+                    message: "ANOVA requires at least one numeric variable and one categorical variable."
+                };
+            }
+            if (testType === 'chi_square' && categoricalCols.length < 2) {
+                return {
+                    valid: false,
+                    message: "Chi-Square test requires at least two categorical variables."
+                };
+            }
+        }
+        
+        return { valid: true };
+    }
+
+    // Handle form submissions with AJAX
+    $('form').on('submit', function(e) {
+        e.preventDefault();
+        var form = $(this);
+        var submitButton = form.find('button[type="submit"]');
+        var formData = new FormData(this);
+        var currentTab = $('#analysisTabs .nav-link.active').attr('href');
+        var currentRegressionTab = $('#regressionTabs .nav-link.active').attr('href');
+        
+        // Validate dataset compatibility
+        var formType = '';
+        if (currentTab === '#regression') {
+            formType = currentRegressionTab === '#logistic' ? 'logistic' : 'regression';
+        } else if (currentTab === '#ancova') {
+            formType = 'ancova';
+        } else if (currentTab === '#hypothesis') {
+            formType = 'hypothesis';
+        }
+        
+        var validation = validateDatasetCompatibility(formType);
+        if (!validation.valid) {
+            $('.alert-container').html('<div class="alert alert-warning alert-dismissible fade show shadow-sm">' +
+                '<div class="d-flex align-items-center">' +
+                '<i class="fas fa-exclamation-triangle me-2"></i>' +
+                '<div>' + validation.message + '</div>' +
+                '</div>' +
+                '<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
+                '<span aria-hidden="true">&times;</span>' +
+                '</button>' +
+                '</div>');
+            return;
+        }
+        
+        submitButton.prop('disabled', true);
+        submitButton.html('<i class="fas fa-spinner fa-spin"></i> Processing...');
+        
+        // Store the current tabs
+        localStorage.setItem('lastTab', currentTab);
+        if (currentRegressionTab) {
+            localStorage.setItem('lastRegressionTab', currentRegressionTab);
+        }
+        
+        $.ajax({
+            url: window.location.href,
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                // Update only the content of the current tab
+                var newContent = $(response).find(currentTab).html();
+                $(currentTab).html(newContent);
+                
+                // Reinitialize select2 and other plugins
+                $('select').select2({
+                    theme: 'bootstrap4',
+                    width: '100%'
+                });
+                
+                // Show success message
+                $('.alert-container').html('<div class="alert alert-success alert-dismissible fade show shadow-sm">' +
+                    '<div class="d-flex align-items-center">' +
+                    '<i class="fas fa-check-circle me-2"></i>' +
+                    '<div>Analysis completed successfully!</div>' +
+                    '</div>' +
+                    '<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
+                    '<span aria-hidden="true">&times;</span>' +
+                    '</button>' +
+                    '</div>');
+                
+                // Scroll to results
+                var resultsElement = $(currentTab).find('.alert-secondary, .alert-info').first();
+                if (resultsElement.length) {
+                    $('html, body').animate({
+                        scrollTop: resultsElement.offset().top - 100
+                    }, 500);
+                }
+            },
+            error: function(xhr) {
+                // Show error message
+                $('.alert-container').html('<div class="alert alert-danger alert-dismissible fade show shadow-sm">' +
+                    '<div class="d-flex align-items-center">' +
+                    '<i class="fas fa-exclamation-triangle me-2"></i>' +
+                    '<div>Error: ' + xhr.responseText + '</div>' +
+                    '</div>' +
+                    '<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
+                    '<span aria-hidden="true">&times;</span>' +
+                    '</button>' +
+                    '</div>');
+            },
+            complete: function() {
+                submitButton.prop('disabled', false);
+                submitButton.html('<i class="fas fa-play"></i> Run Analysis');
+            }
+        });
+    });
+
+    // Handle download report button
+    $('.download-report').on('click', function(e) {
+        e.preventDefault();
+        var button = $(this);
+        
+        button.prop('disabled', true);
+        button.html('<i class="fas fa-spinner fa-spin"></i> Generating...');
+        
+        $.ajax({
+            url: $(this).attr('href'),
+            type: 'GET',
+            xhrFields: {
+                responseType: 'blob'
+            },
+            success: function(blob) {
+                var link = document.createElement('a');
+                link.href = window.URL.createObjectURL(blob);
+                link.download = 'regression_report.pdf';
+                link.click();
+                window.URL.revokeObjectURL(link.href);
+            },
+            error: function(xhr) {
+                $('.alert-container').html('<div class="alert alert-danger alert-dismissible fade show shadow-sm">' +
+                    '<div class="d-flex align-items-center">' +
+                    '<i class="fas fa-exclamation-triangle me-2"></i>' +
+                    '<div>Error generating report: ' + xhr.responseText + '</div>' +
+                    '</div>' +
+                    '<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
+                    '<span aria-hidden="true">&times;</span>' +
+                    '</button>' +
+                    '</div>');
+            },
+            complete: function() {
+                button.prop('disabled', false);
+                button.html('<i class="fas fa-file-pdf"></i> Download Full Report');
+            }
+        });
+    });
+
+    // Form validation
+    $('form').on('submit', function(e) {
+        var form = $(this);
+        var requiredFields = form.find('[required]');
+        var isValid = true;
+
+        requiredFields.each(function() {
+            if (!$(this).val()) {
+                isValid = false;
+                $(this).addClass('is-invalid');
+            } else {
+                $(this).removeClass('is-invalid');
+            }
+        });
+
+        if (!isValid) {
+            e.preventDefault();
+            alert('Please fill in all required fields');
+        }
+    });
+
+    // Clear form validation on change
+    $('select, input').on('change', function() {
+        $(this).removeClass('is-invalid');
+    });
+
+    // Handle test type change
+    $('#test_type').on('change', function() {
+        var testType = $(this).val();
+        var column2 = $('#column2');
+        var groupColumn = $('#group_column');
+        
+        if (testType === 'anova') {
+            column2.prop('required', false);
+            groupColumn.prop('required', true);
+        } else if (testType === 't_test' || testType === 'chi_square' || testType === 'mann_whitney') {
+            column2.prop('required', true);
+            groupColumn.prop('required', false);
+        }
+    });
+
+    // Handle plot type change
+    $('#plot_type').on('change', function() {
+        var plotType = $(this).val();
+        var column2 = $('#column2');
+        var groupColumn = $('#group_column');
+        
+        if (plotType === 'histogram' || plotType === 'boxplot') {
+            column2.prop('required', false);
+            if (plotType === 'boxplot') {
+                groupColumn.prop('required', true);
+            } else {
+                groupColumn.prop('required', false);
+            }
+        } else if (plotType === 'scatterplot') {
+            column2.prop('required', true);
+            groupColumn.prop('required', false);
+        } else if (plotType === 'correlation') {
+            column2.prop('required', false);
+            groupColumn.prop('required', false);
+        }
+    });
+});
+</script>
+{% endblock %}
