@@ -195,11 +195,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-## 📷 Screenshots
-
-Add real screenshots in a `screenshots/` folder and link them here for visual reference.
-
----
 
 ## 🔮 Future Improvements
 
