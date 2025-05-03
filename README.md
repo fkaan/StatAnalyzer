@@ -3,7 +3,7 @@
 [![Django Version](https://img.shields.io/badge/django-3.2+-green.svg)](https://www.djangoproject.com/)  
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)  
 
-![StatAnalyzer Screenshot](screenshot.png)  
+![StatAnalyzer Screenshot](screenshot.PNG)  
 ![StatAnalyzer Screenshot](screenshot2.png)  
 ![StatAnalyzer Screenshot](screenshot3.png)  
 **StatAnalyzer Pro** is a web-based statistical analysis tool that allows users to upload datasets and perform various statistical analyses, including hypothesis testing, regression modeling, visualization, and more. Built with Django and Python, it provides an intuitive interface for data exploration and statistical analysis.
