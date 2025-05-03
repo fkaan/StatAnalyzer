@@ -45,7 +45,7 @@
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/yourusername/Statistics-Calculator.git
+   git clone https://github.com/fkaan/Statistics-Calculator.git
    cd stat-analyzer
    ```
 
