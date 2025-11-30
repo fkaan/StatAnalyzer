@@ -197,26 +197,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 
-## 🔮 Future Improvements
 
-- Add time series analysis capabilities  
-- Implement user accounts to save analysis history  
-- Add more visualization options  
-- Support for larger datasets with pagination  
-- Dockerize the application for easier deployment  
 
----
 
-## 📌 Recommended Badges (Already Included)
-
-```markdown
-[![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/)
-[![Django Version](https://img.shields.io/badge/django-3.2+-green.svg)](https://www.djangoproject.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-```
-
-You can add these right under the title as already shown.
-
----
-
-Built with ❤️ for data scientists, researchers, and students.
